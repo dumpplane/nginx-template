@@ -1,0 +1,12 @@
+= NGINX API Gateway Template
+:toc: manual
+
+A YAML Base Configuration Template that simplify NGINX Configuration.
+
+== API Route
+
+== API Access Control
+
+== API Rate Limit
+
+== API Breaker
