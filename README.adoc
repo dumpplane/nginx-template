@@ -1,7 +1,7 @@
-= NGINX API Gateway Template
+= API Gateway Template
 :toc: manual
 
-A YAML Base Configuration Template that simplify NGINX Configuration.
+A YAML Base Configuration Template that simplify Gateway Configuration.
 
 == API Route
 

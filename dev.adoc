@@ -1,0 +1,24 @@
+= Developer Guid
+:toc: manual
+
+== Steps to Run
+
+[source, bash]
+----
+cd core/configs/nginx/
+go mod init github.com/dumpplane/nginx-template/core/configs/nginx
+go mod tidy
+
+cd ../gateway
+go mod init github.com/dumpplane/nginx-template/core/configs/gateway
+go mod tidy
+
+cd ../../../cmd
+go mod init github.com/dumpplane/nginx-template/cmd
+go mod edit -replace=github.com/dumpplane/nginx-template/core/configs/nginx=../core/configs/nginx
+go mod edit -replace=github.com/dumpplane/nginx-template/core/configs/gateway=../core/configs/gateway
+go mod tidy
+
+go run main.go
+----
+
