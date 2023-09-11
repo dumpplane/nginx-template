@@ -19,6 +19,7 @@ func main() {
 
     parseFlags()
 
+    nginx.Hello()
 
     //templateExecutor, templateExecutorV2 := createTemplateExecutors()
 

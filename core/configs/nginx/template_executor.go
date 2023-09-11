@@ -4,12 +4,17 @@ import (
 	"bytes"
 	"path"
 	"text/template"
+        "fmt"
 )
 
 // TemplateExecutor executes NGINX configuration templates.
 type TemplateExecutor struct {
 	mainTemplate    *template.Template
 	ingressTemplate *template.Template
+}
+
+func Hello() {
+    fmt.Println("Hello from mypackage!")
 }
 
 // NewTemplateExecutor creates a TemplateExecutor.
