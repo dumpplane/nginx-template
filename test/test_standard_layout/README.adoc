@@ -1,0 +1,17 @@
+= How to run
+
+----
+go mod init github.com/dumpplane/template-controller
+
+% go run cmd/template-controller/main.go 
+Function from mymodule.go
+Function from register.go
+Function from userservice.go
+
+go build -o myapp.out ./cmd/template-controller/main.go
+
+% ./myapp.out 
+Function from mymodule.go
+Function from register.go
+Function from userservice.go
+----

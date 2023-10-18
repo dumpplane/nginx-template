@@ -1,0 +1,25 @@
+= How to run?
+
+----
+go mod init dumpplane.io/myproject
+go mod edit -replace=dumpplane.io/myproject/module1=./module1
+go mod edit -replace=dumpplane.io/myproject/module2=./module2
+
+cd module1
+go mod init dumpplane.io/myproject/module1
+
+cd ../module2 
+go mod init dumpplane.io/myproject/module2
+
+cd ..
+go mod tidy
+
+% go run main.go 
+Hello from module1/package1!
+Hello from module2/package2!
+
+go build -o test.out
+% ./test.out 
+Hello from module1/package1!
+Hello from module2/package2!
+----

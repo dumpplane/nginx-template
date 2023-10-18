@@ -1,0 +1,20 @@
+= How to run
+
+----
+go mod init mymodule
+
+cd mypackage
+go mod init mymodule/mypackage
+cd ..
+
+go mod edit -replace=mymodule/mypackage=./mypackage
+go mod tidy
+
+% go run main.go
+Hello from mypackage!
+
+go build -o test.out
+
+% ./test.out 
+Hello from mypackage!
+----
