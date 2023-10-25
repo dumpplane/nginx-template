@@ -1,24 +1,17 @@
 = Developer Guid
 :toc: manual
 
-== Steps to Run
+== Run on Local
 
 [source, bash]
 ----
-cd core/configs/nginx/
-go mod init github.com/dumpplane/nginx-template/core/configs/nginx
-go mod tidy
+go mod init github.com/dumpplane/template-controller
 
-cd ../gateway
-go mod init github.com/dumpplane/nginx-template/core/configs/gateway
-go mod tidy
+go run cmd/template-controller/*.go
 
-cd ../../../cmd
-go mod init github.com/dumpplane/nginx-template/cmd
-go mod edit -replace=github.com/dumpplane/nginx-template/core/configs/nginx=../core/configs/nginx
-go mod edit -replace=github.com/dumpplane/nginx-template/core/configs/gateway=../core/configs/gateway
-go mod tidy
 
-go run main.go
+// build and run
+go build -o a.out -ldflags "-X main.version=1.0.0" cmd/template-controller/*.go
+./a.out
 ----
 
