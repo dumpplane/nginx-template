@@ -1,28 +1,16 @@
 {{ range $u := .Upstreams }}
 upstream {{ $u.Name }} {
-    zone {{ $u.Name }} {{ if ne $u.UpstreamZoneSize "0" }}{{ $u.UpstreamZoneSize }}{{ else }}512k{{ end }};
+    {{ if ne $u.UpstreamZoneSize "0" }}zone {{ $u.Name }} {{ $u.UpstreamZoneSize }};{{ end }}
 
     {{ if $u.LBMethod }}{{ $u.LBMethod }};{{ end }}
 
     {{ range $s := $u.Servers }}
-    server {{ $s.Address }} max_fails={{ $u.MaxFails }} fail_timeout={{ $u.FailTimeout }}{{ if $u.SlowStart }} slow_start={{ $u.SlowStart }}{{ end }} max_conns={{ $u.MaxConns }}{{ if $u.Resolve }} resolve{{ end }};
+    server {{ $s.Address }} max_fails={{ $u.MaxFails }} fail_timeout={{ $u.FailTimeout }} max_conns={{ $u.MaxConns }};
     {{ end }}
 
     {{ if $u.Keepalive }}
     keepalive {{ $u.Keepalive }};
     {{ end }}
-
-    {{ if $u.Queue }}
-    queue {{ $u.Queue.Size }} timeout={{ $u.Queue.Timeout }};
-    {{ end }}
-
-    {{ with $u.SessionCookie }}
-        {{ if .Enable }}
-    sticky cookie {{ .Name }}{{ if .Expires }} expires={{ .Expires }}{{ end }}{{ if .Domain }} domain={{ .Domain }}{{ end }}{{ if .HTTPOnly }} httponly{{ end }}{{ if .SameSite}} samesite={{.SameSite | toLower }}{{ end }}{{ if .Secure }} secure{{ end }}{{ if .Path }} path={{ .Path }}{{ end }};
-        {{ end }}
-    {{ end }}
-
-    {{ if $u.NTLM }}ntlm;{{ end }}
 }
 {{ end }}
 
@@ -50,46 +38,18 @@ map {{ $m.Source }} {{ $m.Variable }} {
 limit_req_zone {{ $z.Key }} zone={{ $z.ZoneName }}:{{ $z.ZoneSize }} rate={{ $z.Rate }};
 {{ end }}
 
-{{ range $m := .StatusMatches }}
-match {{ $m.Name }} {
-    status {{ $m.Code }};
-}
-{{ end }}
-
 {{ $s := .Server }}
-
-{{ with $s.JWKSAuthEnabled }}
-proxy_cache_path /var/cache/nginx/jwks_uri_{{$s.VSName}} levels=1 keys_zone=jwks_uri_{{$s.VSName}}:1m max_size=10m;
-{{ end }}
-
 server {
     {{ if $s.Gunzip }}gunzip on;{{end}}
     listen 80{{ if $s.ProxyProtocol }} proxy_protocol{{ end }};
     {{ if not $s.DisableIPV6 }}listen [::]:80{{ if $s.ProxyProtocol }} proxy_protocol{{ end }};{{ end }}
 
     server_name {{ $s.ServerName }};
-    status_zone {{ $s.StatusZone }};
+
     set $resource_type "virtualserver";
     set $resource_name "{{$s.VSName}}";
     set $resource_namespace "{{$s.VSNamespace}}";
 
-    {{ with $oidc := $s.OIDC }}
-    include oidc/oidc.conf;
-
-    set $oidc_pkce_enable 0;
-    set $oidc_logout_redirect "/_logout";
-    set $oidc_hmac_key "{{ $s.VSName }}";
-    set $zone_sync_leeway {{ $oidc.ZoneSyncLeeway }};
-
-    set $oidc_authz_endpoint "{{ $oidc.AuthEndpoint }}";
-    set $oidc_authz_extra_args "{{ $oidc.AuthExtraArgs }}";
-    set $oidc_token_endpoint "{{ $oidc.TokenEndpoint }}";
-    set $oidc_jwt_keyfile "{{ $oidc.JwksURI }}";
-    set $oidc_scopes "{{ $oidc.Scope }}";
-    set $oidc_client "{{ $oidc.ClientID }}";
-    set $oidc_client_secret "{{ $oidc.ClientSecret }}";
-    set $redir_location "{{ $oidc.RedirectURI }}";
-    {{ end }}
 
     {{ with $ssl := $s.SSL }}
         {{ if $s.TLSPassthrough }}
@@ -117,7 +77,7 @@ server {
     ssl_certificate /etc/nginx/secrets/spiffe_cert.pem;
     ssl_certificate_key /etc/nginx/secrets/spiffe_key.pem;
       {{ end }}
-    {{ end  }}
+    {{ end }}
 
     {{ with $s.IngressMTLS }}
     ssl_client_certificate {{ .ClientCert }};
@@ -181,34 +141,6 @@ server {
         {{ if $rl.Delay }} delay={{ $rl.Delay }}{{ end }}{{ if $rl.NoDelay }} nodelay{{ end }};
     {{ end }}
 
-    {{ with $s.JWTAuth }}
-    auth_jwt "{{ .Realm }}"{{ if .Token }} token={{ .Token }}{{ end }};
-    {{ if .Secret}}auth_jwt_key_file {{ .Secret }};{{ end }}
-    {{ if .JwksURI.JwksHost }}
-    {{ if .KeyCache }}auth_jwt_key_cache {{ .KeyCache }};{{ end }}
-    auth_jwt_key_request /_jwks_uri_server_{{ .Key }};
-
-    {{ end }}
-    {{ end }}
-
-    {{ range $index, $element := $s.JWTAuthList }}
-    location = /_jwks_uri_server_{{ .Key }} {
-        internal;
-        proxy_method GET;
-        proxy_set_header Content-Length "";
-        {{ if .KeyCache }}
-        proxy_cache jwks_uri_{{ $s.VSName }};
-        proxy_cache_valid 200 12h;
-        {{ end }}
-        {{ with .JwksURI }}
-        proxy_set_header Host {{ .JwksHost }};
-        set $idp_backend {{ .JwksHost }};
-        proxy_pass {{ .JwksScheme}}://$idp_backend{{ if .JwksPort }}:{{ .JwksPort }}{{ end }}{{ .JwksPath }};
-        {{ end }}
-    }
-
-    {{ end }}
-
     {{ with $s.BasicAuth }}
     auth_basic {{ printf "%q" .Realm }};
     auth_basic_user_file {{ .Secret }};
@@ -232,55 +164,6 @@ server {
     proxy_ssl_name {{ .SSLName }};
     {{ end }}
 
-    {{ with $s.WAF }}
-    app_protect_enable {{ .Enable }};
-        {{ if .ApPolicy }}
-    app_protect_policy_file {{ .ApPolicy }};
-        {{ end }}
-
-        {{ if .ApBundle }}
-    app_protect_policy_file {{ .ApBundle }};
-        {{ end }}
-
-        {{ if .ApSecurityLogEnable }}
-    app_protect_security_log_enable on;
-        {{ range $logconf := .ApLogConf }}
-    app_protect_security_log {{ $logconf }};
-        {{ end }}
-        {{ end }}
-    {{ end }}
-
-    {{- with $s.Dos }}
-    app_protect_dos_enable {{ .Enable }};
-        {{- if .Name }}
-    app_protect_dos_name "{{ .Name }}";
-        {{- end }}
-
-        {{- if .ApDosPolicy }}
-    app_protect_dos_policy_file {{ .ApDosPolicy }};
-        {{- end }}
-
-        {{- if .ApDosSecurityLogEnable }}
-    app_protect_dos_security_log_enable on;
-    app_protect_dos_security_log {{ .ApDosLogConf }};
-        {{- end }}
-
-        {{- if .ApDosAccessLogDest }}
-    set $loggable '0';
-    # app-protect-dos module will set it to '1'  if a request doesn't pass the rate limit
-    access_log {{ .ApDosAccessLogDest }} log_dos if=$loggable;
-        {{- end }}
-
-        {{- if .ApDosMonitorURI }}
-            {{- if or .ApDosMonitorProtocol .ApDosMonitorTimeout}}
-    app_protect_dos_monitor uri={{ .ApDosMonitorURI }}{{if .ApDosMonitorProtocol}} protocol={{.ApDosMonitorProtocol}}{{end}}{{if .ApDosMonitorTimeout}} timeout={{.ApDosMonitorTimeout}}{{end}};
-            {{- else}}
-    app_protect_dos_monitor "{{ .ApDosMonitorURI }}";
-            {{- end}}
-        {{- end}}
-
-    {{- end }}
-
     {{ range $snippet := $s.Snippets }}
     {{- $snippet }}
     {{ end }}
@@ -288,28 +171,6 @@ server {
     {{ range $l := $s.InternalRedirectLocations }}
     location {{ $l.Path }} {
         rewrite ^ {{ $l.Destination }} last;
-    }
-    {{ end }}
-
-    {{ range $hc := $s.HealthChecks }}
-    location @hc-{{ $hc.Name }} {
-        {{ $proxyOrGRPC := "proxy" }}{{ if $hc.GRPCPass }}{{ $proxyOrGRPC = "grpc" }}{{ end }}
-        {{ range $n, $v := $hc.Headers }}
-        {{ $proxyOrGRPC }}_set_header {{ $n }} "{{ $v }}";
-        {{ end }}
-        {{ $proxyOrGRPC }}_connect_timeout {{ $hc.ProxyConnectTimeout }};
-        {{ $proxyOrGRPC }}_read_timeout {{ $hc.ProxyReadTimeout }};
-        {{ $proxyOrGRPC }}_send_timeout {{ $hc.ProxySendTimeout }};
-            {{ if $hc.GRPCPass }}
-        grpc_pass {{ $hc.GRPCPass }};
-            {{ else }}
-        proxy_pass {{ $hc.ProxyPass }};
-            {{ end }}
-        health_check {{ if $hc.URI }}uri={{ $hc.URI }} {{ end }}{{ if $hc.Port }}port={{ $hc.Port }} {{ end }}interval={{ $hc.Interval }} jitter={{ $hc.Jitter }}
-            fails={{ $hc.Fails }} passes={{ $hc.Passes }}{{ if $hc.Match }} match={{ $hc.Match }}{{ end }}
-            {{ if $hc.Mandatory }} mandatory{{ if $hc.Persistent }} persistent{{ end }}{{ end }}
-            {{ if $hc.GRPCPass }} type=grpc{{ if $hc.GRPCStatus }} grpc_status={{ $hc.GRPCStatus }}{{ end }}
-            {{ if $hc.GRPCService }} grpc_service={{ $hc.GRPCService }}{{ end }}{{ end }} keepalive_time={{ $hc.KeepaliveTime }};
     }
     {{ end }}
 
@@ -337,13 +198,11 @@ server {
     {{ range $l := $s.Locations }}
     location {{ $l.Path }} {
         set $service "{{ $l.ServiceName }}";
-        status_zone "{{ $l.ServiceName }}";
         {{ if $l.IsVSR }}
         set $resource_type "virtualserverroute";
         set $resource_name "{{ $l.VSRName }}";
         set $resource_namespace "{{ $l.VSRNamespace }}";
         {{ end }}
-
         {{ if $l.Internal }}
         internal;
         {{ end }}
@@ -386,15 +245,6 @@ server {
             {{ if $rl.Delay }} delay={{ $rl.Delay }}{{ end }}{{ if $rl.NoDelay }} nodelay{{ end }};
         {{ end }}
 
-        {{ with $l.JWTAuth }}
-        auth_jwt "{{ .Realm }}"{{ if .Token }} token={{ .Token }}{{ end }};
-        {{ if .Secret}}auth_jwt_key_file {{ .Secret }};{{ end }}
-        {{ if .JwksURI.JwksHost }}
-        {{ if .KeyCache }}auth_jwt_key_cache {{ .KeyCache }};{{ end }}
-        auth_jwt_key_request /_jwks_uri_server_{{ .Key }};
-        {{ end }}
-        {{ end }}
-
         {{ with $l.BasicAuth }}
         auth_basic {{ printf "%q" .Realm }};
         auth_basic_user_file {{ .Secret }};
@@ -420,34 +270,6 @@ server {
         {{ $proxyOrGRPC }}_ssl_name {{ .SSLName }};
         {{ end }}
 
-        {{ if $l.OIDC }}
-        auth_jwt "" token=$session_jwt;
-        error_page 401 = @do_oidc_flow;
-        auth_jwt_key_request /_jwks_uri;
-        {{ $proxyOrGRPC }}_set_header username $jwt_claim_sub;
-            {{- if $s.OIDC.AccessTokenEnable }}
-        {{ $proxyOrGRPC }}_set_header Authorization "Bearer $access_token";
-            {{- end }}
-        {{ end }}
-
-        {{ with $l.WAF }}
-        app_protect_enable {{ .Enable }};
-            {{ if .ApPolicy }}
-        app_protect_policy_file {{ .ApPolicy }};
-            {{ end }}
-
-            {{ if .ApBundle }}
-        app_protect_policy_file {{ .ApBundle }};
-            {{ end }}
-
-            {{ if .ApSecurityLogEnable }}
-        app_protect_security_log_enable on;
-            {{ range $logconf := .ApLogConf }}
-        app_protect_security_log {{ $logconf }};
-            {{ end }}
-            {{ end }}
-        {{ end }}
-
             {{ if $l.GRPCPass }}
         error_page 400 = @grpc_internal;
         error_page 401 = @grpc_unauthenticated;
@@ -470,36 +292,6 @@ server {
         error_page 501 = @grpc_internal;
             {{ end }}
 
-        {{- with $l.Dos }}
-        app_protect_dos_enable {{ .Enable }};
-
-            {{- if .Name }}
-        app_protect_dos_name "{{ .Name }}";
-            {{- end }}
-
-            {{- if .ApDosPolicy }}
-        app_protect_dos_policy_file {{ .ApDosPolicy }};
-            {{- end }}
-
-            {{ if .ApDosSecurityLogEnable }}
-        app_protect_dos_security_log_enable on;
-        app_protect_dos_security_log {{ .ApDosLogConf }};
-            {{ end }}
-            {{- if .ApDosAccessLogDest }}
-        set $loggable '0';
-        # app-protect-dos module will set it to '1'  if a request doesn't pass the rate limit
-        access_log {{ .ApDosAccessLogDest }} log_dos if=$loggable;
-            {{- end }}
-
-            {{- if .ApDosMonitorURI }}
-                {{- if or .ApDosMonitorProtocol .ApDosMonitorTimeout}}
-        app_protect_dos_monitor uri={{ .ApDosMonitorURI }}{{if .ApDosMonitorProtocol}} protocol={{.ApDosMonitorProtocol}}{{end}}{{if .ApDosMonitorTimeout}} timeout={{.ApDosMonitorTimeout}}{{end}};
-                {{- else}}
-        app_protect_dos_monitor "{{ .ApDosMonitorURI }}";
-                {{- end}}
-            {{- end}}
-        {{- end }}
-
         {{ range $e := $l.ErrorPages }}
         error_page {{ $e.Codes }} {{ if ne 0 $e.ResponseCode }}={{ $e.ResponseCode }}{{ end }} "{{ $e.Name }}";
         {{ end }}
@@ -512,7 +304,7 @@ server {
         proxy_pass {{ $l.InternalProxyPass }};
         {{ end }}
 
-        {{ if or $l.ProxyPass $l.GRPCPass }}
+        {{ if or $l.ProxyPass $l.GRPCPass}}
             {{ range $r := $l.Rewrites }}
         rewrite {{ $r }};
             {{ end }}
@@ -532,7 +324,6 @@ server {
             {{ if $l.ProxyBufferSize }}
         {{ $proxyOrGRPC }}_buffer_size {{ $l.ProxyBufferSize }};
             {{ end }}
-
             {{ if not $l.GRPCPass }}
         proxy_http_version 1.1;
         set $default_connection_header {{ if $l.HasKeepalive }}""{{ else }}close{{ end }};

@@ -7,11 +7,25 @@
 ----
 go mod init github.com/dumpplane/template-controller
 
+go get github.com/golang/glog
+
 go run cmd/template-controller/*.go
 
+// run test
+go test ./internal/configs/nginx
+go test ./internal/configs/nginx -v
 
 // build and run
 go build -o a.out -ldflags "-X main.version=1.0.0" cmd/template-controller/*.go
 ./a.out
 ----
 
+== template generator
+
+[source, bash]
+----
+go test ./internal/configs/nginx
+
+cat /tmp/http.conf
+cat /tmp/tcp.conf
+----

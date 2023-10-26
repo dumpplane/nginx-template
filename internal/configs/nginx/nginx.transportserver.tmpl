@@ -7,25 +7,13 @@ upstream {{ $u.Name }} {
     {{ end }}
 
     {{ range $s := $u.Servers }}
-    server {{ $s.Address }} max_fails={{ $s.MaxFails }} fail_timeout={{ $s.FailTimeout }} max_conns={{ $s.MaxConnections }}{{ if $u.Resolve }} resolve{{ end }};
+    server {{ $s.Address }} max_fails={{ $s.MaxFails }} fail_timeout={{ $s.FailTimeout }} max_conns={{ $s.MaxConnections }};
     {{ end }}
 }
 {{ end }}
 
 {{ range $snippet := .StreamSnippets }}
 {{- $snippet }}
-{{ end }}
-
-{{ with $m := .Match }}
-match {{ $m.Name }} {
-    {{ if $m.Send }}
-    send "{{ $m.Send }}";
-    {{ end }}
-
-    {{ if $m.Expect }}
-    expect {{ $m.ExpectRegexModifier }} "{{ $m.Expect }}";
-    {{ end }}
-}
 {{ end }}
 
 {{ $s := .Server }}
@@ -45,8 +33,6 @@ server {
         {{ end }}
     {{ end }}
 
-    status_zone {{ $s.StatusZone }};
-
     {{ if $s.ProxyRequests }}
     proxy_requests {{ $s.ProxyRequests }};
     {{ end }}
@@ -59,12 +45,6 @@ server {
     {{ end }}
 
     proxy_pass {{ $s.ProxyPass }};
-
-    {{ if $s.HealthCheck }}
-    health_check interval={{ $s.HealthCheck.Interval }} {{ if $s.HealthCheck.Port }} port={{ $s.HealthCheck.Port }}{{ end }}
-        passes={{ $s.HealthCheck.Passes }} jitter={{ $s.HealthCheck.Jitter }} fails={{ $s.HealthCheck.Fails }}{{ if $s.UDP }} udp{{ end }}{{ if $s.HealthCheck.Match }} match={{ $s.HealthCheck.Match }}{{ end }};
-    health_check_timeout {{ $s.HealthCheck.Timeout }};
-    {{ end }}
 
     proxy_timeout {{ $s.ProxyTimeout }};
     proxy_connect_timeout {{ $s.ProxyConnectTimeout }};

@@ -1,4 +1,4 @@
-package gateway
+package nginx
 
 // TransportServerConfig holds NGINX configuration for a TransportServer.
 type TransportServerConfig struct {
