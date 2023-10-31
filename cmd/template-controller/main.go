@@ -5,6 +5,7 @@ import (
     "runtime"
 
     "github.com/dumpplane/template-controller/internal/configs/nginx"
+    "github.com/dumpplane/template-controller/internal/configs/nginx/gateway"
     "github.com/golang/glog"
 )
 
@@ -17,20 +18,26 @@ func main() {
 
     parseFlags()
 
-    templateExecutor := createTemplateExecutors()
+    ngxTemplateExecutor, templateExecutor := createTemplateExecutors()
  
-    fmt.Printf("Template Executor: %v\n", templateExecutor)
+    fmt.Printf("Template Executor: %v, %v\n", ngxTemplateExecutor, templateExecutor)
 }
 
-func createTemplateExecutors() (*nginx.TemplateExecutor) {
+func createTemplateExecutors() (*nginx.TemplateExecutor, *gateway.TemplateExecutor) {
 
-    nginxVirtualServerTemplatePath := "nginx.virtualserver.tmpl"
-    nginxTransportServerTemplatePath := "nginx.transportserver.tmpl"
+    nginxConfTemplatePath := "tmpl/nginx-plus.tmpl"
+    nginxVirtualServerTemplatePath := "tmpl/nginx-plus.virtualserver.tmpl"
+    nginxTransportServerTemplatePath := "tmpl/nginx-plus.transportserver.tmpl"
 
-    templateExecutor, err := nginx.NewTemplateExecutor(nginxVirtualServerTemplatePath, nginxTransportServerTemplatePath)
+    ngxTemplateExecutor, err := nginx.NewTemplateExecutor(nginxConfTemplatePath)
     if err != nil {
         glog.Fatalf("Error creating TemplateExecutor: %v", err)
     }
 
-    return templateExecutor
+    templateExecutor, err := gateway.NewTemplateExecutor(nginxVirtualServerTemplatePath, nginxTransportServerTemplatePath)
+    if err != nil {
+        glog.Fatalf("Error creating TemplateExecutor: %v", err)
+    }
+
+    return ngxTemplateExecutor, templateExecutor
 }

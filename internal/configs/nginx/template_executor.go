@@ -1,54 +1,46 @@
 package nginx
 
 import (
-        "bytes"
-        "path"
-        "text/template"
+	"bytes"
+	"path"
+	"text/template"
 )
 
+// TemplateExecutor executes NGINX configuration templates.
 type TemplateExecutor struct {
-        virtualServerTemplate       *template.Template
-        transportServerTemplate     *template.Template
+	mainTemplate    *template.Template
 }
 
-func NewTemplateExecutor(virtualServerTemplatePath string, transportServerTemplatePath string) (*TemplateExecutor, error) {
+// NewTemplateExecutor creates a TemplateExecutor.
+func NewTemplateExecutor(mainTemplatePath string) (*TemplateExecutor, error) {
+	// template name must be the base name of the template file https://golang.org/pkg/text/template/#Template.ParseFiles
+	nginxTemplate, err := template.New(path.Base(mainTemplatePath)).ParseFiles(mainTemplatePath)
+	if err != nil {
+		return nil, err
+	}
 
-    vsTemplate, err := template.New(path.Base(virtualServerTemplatePath)).Funcs(helperFunctions).ParseFiles(virtualServerTemplatePath)
-    if err != nil {
-        return nil, err
-    }
-
-    tsTemplate, err := template.New(path.Base(transportServerTemplatePath)).ParseFiles(transportServerTemplatePath)
-    if err != nil {
-        return nil, err
-    }
-
-    return &TemplateExecutor{
-        virtualServerTemplate:       vsTemplate,
-        transportServerTemplate:     tsTemplate,
-    }, nil
+	return &TemplateExecutor{
+		mainTemplate:    nginxTemplate,
+	}, nil
 }
 
-func (te *TemplateExecutor) UpdateVirtualServerTemplate(templateString *string) error {
-        newTemplate, err := template.New("virtualServerTemplate").Funcs(helperFunctions).Parse(*templateString)
-        if err != nil {
-                return err
-        }
-        te.virtualServerTemplate = newTemplate
+// UpdateMainTemplate updates the main NGINX template.
+func (te *TemplateExecutor) UpdateMainTemplate(templateString *string) error {
+	newTemplate, err := template.New("nginxTemplate").Parse(*templateString)
+	if err != nil {
+		return err
+	}
 
-        return nil
+	te.mainTemplate = newTemplate
+
+	return nil
 }
 
-func (te *TemplateExecutor) ExecuteVirtualServerTemplate(cfg *VirtualServerConfig) ([]byte, error) {
-        var configBuffer bytes.Buffer
-        err := te.virtualServerTemplate.Execute(&configBuffer, cfg)
+// ExecuteMainConfigTemplate generates the content of the main NGINX configuration file.
+func (te *TemplateExecutor) ExecuteMainConfigTemplate(cfg *MainConfig) ([]byte, error) {
+	var configBuffer bytes.Buffer
+	err := te.mainTemplate.Execute(&configBuffer, cfg)
 
-        return configBuffer.Bytes(), err
+	return configBuffer.Bytes(), err
 }
 
-func (te *TemplateExecutor) ExecuteTransportServerTemplate(cfg *TransportServerConfig) ([]byte, error) {
-        var configBuffer bytes.Buffer
-        err := te.transportServerTemplate.Execute(&configBuffer, cfg)
-
-        return configBuffer.Bytes(), err
-}

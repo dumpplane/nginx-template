@@ -1,4 +1,4 @@
-package nginx
+package gateway
 
 import "fmt"
 
@@ -50,6 +50,9 @@ type UpstreamServer struct {
 type Server struct {
 	ServerName                string
 	StatusZone                string
+	CustomListeners           bool
+	HTTPPort                  int
+	HTTPSPort                 int
 	ProxyProtocol             bool
 	SSL                       *SSL
 	ServerTokens              string
