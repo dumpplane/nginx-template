@@ -4,6 +4,7 @@ import (
     "fmt"
     "runtime"
 
+    "github.com/dumpplane/template-controller/internal/configs"
     "github.com/dumpplane/template-controller/internal/configs/nginx"
     "github.com/dumpplane/template-controller/internal/configs/nginx/gateway"
     "github.com/golang/glog"
@@ -19,8 +20,11 @@ func main() {
     parseFlags()
 
     ngxTemplateExecutor, templateExecutor := createTemplateExecutors()
+
+    nginxPlus := true
+    cfgParams := configs.NewDefaultConfigParams(nginxPlus)
  
-    fmt.Printf("Template Executor: %v, %v\n", ngxTemplateExecutor, templateExecutor)
+    fmt.Printf("Template Executor: %v, %v, %s\n", ngxTemplateExecutor, templateExecutor, cfgParams.UpstreamZoneSize)
 }
 
 func createTemplateExecutors() (*nginx.TemplateExecutor, *gateway.TemplateExecutor) {
