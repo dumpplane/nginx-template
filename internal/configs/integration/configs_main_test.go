@@ -2,6 +2,8 @@ package configs
 
 import (
     "testing"
+    "strings"
+    "io/ioutil"
     "github.com/dumpplane/template-controller/internal/configs"
     "github.com/dumpplane/template-controller/internal/configs/nginx"
     "github.com/golang/glog"
@@ -13,7 +15,7 @@ var (
     healthStatus            = false
     healthStatusURI         = "/nginx-health"
     nginxStatus             = true
-    allowedCIDRs            = "0.0.0.0/0"
+    nginxStatusAllowCIDRs   = "10.1.10.0/24,192.168.1.101"
     nginxStatusPort         = 8080
     enablePrometheusMetrics = false
     enableTLSPassthrough    = false
@@ -25,9 +27,7 @@ var (
     enableOIDC              = false
     enableCertManager       = false
     sslRejectHandshake      = false
-    defaultHTTPPort         = 80
-    defaultHTTPSPort        = 443
-    tlsPassthroughPort      = 5001
+    allowedCIDRs []string
 )
 
 func TestDefault(t *testing.T) {
@@ -38,30 +38,31 @@ func TestDefault(t *testing.T) {
         glog.Fatalf("Error creating TemplateExecutor: %v", err)
     }
 
+    allowedCIDRs, err = parseNginxStatusAllowCIDRs(nginxStatusAllowCIDRs)
+    if err != nil {
+        glog.Fatalf(`Invalid value: %v`, err)
+    }
 
-    cfgParams := configs.NewDefaultConfigParams(*nginxPlus)
+    cfgParams := configs.NewDefaultConfigParams(nginxPlus)
 
 
     staticCfgParams := &configs.StaticConfigParams{
-        DisableIPV6:                    *disableIPV6,
-        HealthStatus:                   *healthStatus,
-        HealthStatusURI:                *healthStatusURI,
-        NginxStatus:                    *nginxStatus,
-        NginxStatusAllowCIDRs:          *allowedCIDRs,
-        NginxStatusPort:                *nginxStatusPort,
-        StubStatusOverUnixSocketForOSS: *enablePrometheusMetrics,
-        TLSPassthrough:                 *enableTLSPassthrough,
-        EnableSnippets:                 *enableSnippets,
-        NginxServiceMesh:               *spireAgentAddress != "",
-        MainAppProtectLoadModule:       *appProtect,
-        MainAppProtectDosLoadModule:    *appProtectDos,
-        EnableLatencyMetrics:           *enableLatencyMetrics, 
-        EnableOIDC:                     *enableOIDC,
-        SSLRejectHandshake:             *sslRejectHandshake,
-        EnableCertManager:              *enableCertManager,
-        DefaultHTTPListenerPort:        *defaultHTTPPort,
-        DefaultHTTPSListenerPort:       *defaultHTTPSPort,      
-        TLSPassthroughPort:             *tlsPassthroughPort,
+        DisableIPV6:                    disableIPV6,
+        HealthStatus:                   healthStatus,
+        HealthStatusURI:                healthStatusURI,
+        NginxStatus:                    nginxStatus,
+        NginxStatusAllowCIDRs:          allowedCIDRs,
+        NginxStatusPort:                nginxStatusPort,
+        StubStatusOverUnixSocketForOSS: enablePrometheusMetrics,
+        TLSPassthrough:                 enableTLSPassthrough,
+        EnableSnippets:                 enableSnippets,
+        NginxServiceMesh:               spireAgentAddress != "",
+        MainAppProtectLoadModule:       appProtect,
+        MainAppProtectDosLoadModule:    appProtectDos,
+        EnableLatencyMetrics:           enableLatencyMetrics, 
+        EnableOIDC:                     enableOIDC,
+        SSLRejectHandshake:             sslRejectHandshake,
+        EnableCertManager:              enableCertManager,
     }
 
     ngxConfig := configs.GenerateNginxMainConfig(staticCfgParams, cfgParams)
@@ -69,6 +70,18 @@ func TestDefault(t *testing.T) {
     if err != nil { 
         glog.Fatalf("Error generating NGINX main config: %v", err)
     } 
+
+    output := "/tmp/nginx-default.conf"
+    ioutil.WriteFile(output, content, 0644)
+    t.Log("output to file ", output)
     
 }
 
+func parseNginxStatusAllowCIDRs(input string) (cidrs []string, err error) {
+        cidrsArray := strings.Split(input, ",")
+        for _, cidr := range cidrsArray {
+                trimmedCidr := strings.TrimSpace(cidr)
+                cidrs = append(cidrs, trimmedCidr)
+        }
+        return cidrs, nil 
+}

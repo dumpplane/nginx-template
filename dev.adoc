@@ -29,3 +29,13 @@ go test ./internal/configs/nginx
 cat /tmp/http.conf
 cat /tmp/tcp.conf
 ----
+
+== integration test
+
+[source, bash]
+----
+go test ./internal/configs/integration
+
+grep -v '^[[:space:]]*$' /tmp/nginx-default.conf
+----
+
