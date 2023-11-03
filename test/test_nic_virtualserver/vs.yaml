@@ -1,0 +1,32 @@
+apiVersion: k8s.nginx.org/v1
+kind: VirtualServer
+metadata:
+  name: cafe
+spec:
+  host: cafe.example.com
+  listener:
+    http: http-8083
+    https: https-8443
+  tls:
+    secret: cafe-secret
+  gunzip: on
+  upstreams:
+  - name: tea
+    service: tea-svc
+    port: 80
+  - name: coffee
+    service: coffee-svc
+    port: 80
+  routes:
+  - path: /tea
+    action:
+      pass: tea
+  - path: /coffee
+    action:
+      pass: coffee
+  - path: ~ ^/decaf/.*\\.jpg$
+    action:
+      pass: coffee
+  - path: = /green/tea
+    action:
+      pass: tea
