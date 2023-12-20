@@ -39,3 +39,12 @@ go test ./internal/configs/integration
 grep -v '^[[:space:]]*$' /tmp/nginx-default.conf
 ----
 
+== REST API
+
+REST API will convert the Declaration JSON configuration into the internal struct:
+
+* `internal.configs.nginx.MainConfig` 
+* `internal.configs.nginx.gateway.VirtualServerConfig` 
+* `internal.configs.nginx.gateway.TransportServerConfig`
+
+then use the above struct as config parameter to invoke internal SDK to create/update configuration. 
